@@ -62,6 +62,16 @@ class AppointmentController {
       });
     }
 
+    /**
+     *  Check if user is scheduling a appointment with himself
+     */
+
+    if (req.userId == provider_id) {
+      return res.status(400).json({
+        error: "You can't make an appointment with yourself",
+      });
+    }
+
     // check for past dates
     const hourStart = startOfHour(parseISO(date));
 
