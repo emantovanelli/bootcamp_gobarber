@@ -1,13 +1,12 @@
 import * as Yup from 'yup';
 import { startOfHour, parseISO, isBefore, format, subHours } from 'date-fns';
 import pt from 'date-fns/locale/pt';
-// import { subHours } from 'date-fns/esm';
 import Notification from '../schemas/Notification';
 import Appointment from '../models/Appointment';
 import File from '../models/File';
 import User from '../models/User';
-
-import Mail from '../../lib/Mail';
+import Queue from '../../lib/Queue';
+import CancellationMail from '../jobs/CancellationMail';
 
 class AppointmentController {
   async index(req, res) {
@@ -70,7 +69,7 @@ class AppointmentController {
      *  Check if user is scheduling a appointment with himself
      */
 
-    if (req.userId == provider_id) {
+    if (req.userId === provider_id) {
       return res.status(400).json({
         error: "You can't make an appointment with yourself",
       });
@@ -158,17 +157,8 @@ class AppointmentController {
     appointment.canceled_at = new Date();
     await appointment.save();
 
-    await Mail.sendMail({
-      to: `${appointment.provider.name} <${appointment.provider.email}>`,
-      subject: 'Agendamento Cancelado',
-      template: 'cancellation',
-      context: {
-        provider: appointment.provider.name,
-        user: appointment.user.name,
-        date: format(appointment.date, "'dia' dd 'de' MMMM', às' H:mm'h'", {
-          locale: pt,
-        }),
-      },
+    await Queue.add(CancellationMail.key, {
+      appointment,
     });
 
     return res.json(appointment);
